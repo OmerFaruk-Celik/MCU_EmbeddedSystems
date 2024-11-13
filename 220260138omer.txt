@@ -1,0 +1,66 @@
+static PROCESS_HANDLER_PROTO(encoderAppInitialStateHandler)
+{
+    tsEncoderAppParams *params       = process->parameters;
+    const tsEncoderAppConsts *consts = process->constants;
+
+    UNUSED(params); // REMOVE IF USED
+    UNUSED(consts); // REMOVE IF USED
+
+    static uint32_t encoderValue = 0; //ilk değerler başa yazıldı
+    static uint32_t selectedValue1 = 0;
+    static uint32_t selectedValue2 = 0;
+    static uint32_t totalValue = 0;
+
+    switch (eventCurrent.event)
+    {
+        case eEPEventEncoderTurn: 
+        {
+            uint32_t newEncoderValue = devIoGet(consts->encoder);
+
+            if (newEncoderValue != encoderValue) { 
+                devIoPut(consts->sevenSegmentDisplay, newEncoderValue);
+                encoderValue = newEncoderValue;
+            }
+        }
+        break;
+
+        case p46Released: //  değer seçildi
+        {
+            selectedValue1 = encoderValue;
+            devIoPut(consts->redLed, HIGH); // Kırmızı LED yanacak
+        }
+        break;
+
+        
+        case p70Released: // İkinci değer seçildi
+        {
+            selectedValue2 = encoderValue;
+            devIoPut(consts->blueLed, HIGH); // Mavi LED yanacak
+        }
+        break;
+        case p71Released: // butonuna basıldığında toplama 
+        {
+            totalValue = selectedValue1 + selectedValue2;
+            devIoPut(consts->sevenSegmentDisplay, totalValue); // Sonucu ekrana yazdır
+            
+            devIoPut(consts->greenLed, HIGH); // Yeşil LED yanacak
+            
+            timerEventStart(&(params->timerUI), 10000); // 10000 ms bekleniyor
+        }
+        break;
+        case eEPEventUIUpdate: //başa dön
+        {
+            devIoPut(consts->redLed, LOW);
+            devIoPut(consts->blueLed, LOW);
+            devIoPut(consts->greenLed, LOW);
+            
+            selectedValue1 = 0;
+            selectedValue2 = 0;
+            totalValue = 0;
+        }
+        break;
+
+        default:
+            break;
+    }
+}
